@@ -1,0 +1,27 @@
+## RUS (Remove-Unused-Strings)
+
+## 'rus' is a command line tool to remove a string resource from 'strings.xml' for all locales. 
+
+## Usage: 
+from parent directory of 'res' folder in Android project, execute
+
+```
+./rus < input_file
+
+```
+
+## Input file format
+
+<string name="appModeChanger">Choose App Mode</string>
+<string name="mode1">Phone Mode</string>
+<string name="modeDetail1">app will run in phone mode, with small display area</string>
+<string name="mode2">Large Phone Mode</string>
+
+## Limitation
+if string resource is defined in multiples lines then this tool will not work properly.
+
+## License
+Copyright (c) 2016 - The Mit License(MIT)
+
+## Author
+Saurabh Jain (saurabh4768jain@gmail.com)

@@ -1,0 +1,37 @@
+## AUS (Android-Untranslated-Strings)
+
+## 'aus' is a command line tool to know strings which need to be translated on an Android project.
+
+## output of 'aus' are xml resource files for each of those locale for which there is at least one string which needs to be translated. 
+
+## Requirements: Python 2.6+
+
+## Installation
+Put **aus** source folder on your $PATH environment variable.
+
+## Usage:
+from parent directory of 'res' folder in Android project, execute
+
+```
+aus [-l xx[,yy,zz...]] -o <output_file>
+
+    Options:
+
+    -h --help            Print this help
+
+
+    -l --lang <xx>       Specify a language(s) with comma separated 2-char language codes.
+
+                         e.g:  -l cn         (find missing translation strings for Chinese strings.xml)
+                               -l cn,it,fr   (find missing translation strings for Chinese, Italian and French strings.xml files)
+
+                         If this parameter is ommited, all strings.xml files will be processed.
+
+    -o --oFile           Specify the output directory name
+```
+
+## License
+Copyright (c) 2016 - The Mit License (MIT)
+
+## Author
+Saurabh Jain (saurabh4768jain@gmail.com)

@@ -1,0 +1,186 @@
+#!/usr/bin/env python
+import re
+import os
+import sys
+import getopt
+
+PATTERN=re.compile(r'<string name="(.*?)">(.*?)</string>', re.I | re.MULTILINE)
+
+class MissingStringsReport:
+    filePath = None
+    originalStringsDict = None
+    myStringsDict = None
+    missingKeys = None
+
+    def __init__(self, stringsFilePath, originalStringsDict):
+        self.stringsFilePath = stringsFilePath
+        self.originalStringsDict = originalStringsDict
+        self.myStringsDict = MissingStringsReport.readXML(self.stringsFilePath)
+        self.missingKeys   = MissingStringsReport.findMissingKeys(self.originalStringsDict, self.myStringsDict)
+        self.leftOverKeys  = MissingStringsReport.findLeftoverKeys(self.originalStringsDict, self.myStringsDict)
+
+    '''Returns a list with the missing keys.'''
+    def getMissingKeys(self):
+        return self.missingKeys
+
+    '''Returns a list of keys not present in default file'''
+    def getLeftoverKeys(self):
+        return self.leftOverKeys
+
+    def getMyStringsDict(self):
+        return self.myStringsDict
+
+    '''Returns list of keys which does not have translation'''
+    @staticmethod
+    def findMissingKeys(fullDict, incompleteDict):
+        missingKeys = []
+        for k in fullDict:
+            if k not in incompleteDict:
+                missingKeys.append(k)
+        return missingKeys
+
+    '''Returns list of keys present in locale but not in default file.'''
+    @staticmethod
+    def findLeftoverKeys(fullDict, incompleteDict):
+        leftOverKeys = []
+        for k in incompleteDict:
+            if k not in fullDict:
+                leftOverKeys.append(k)
+        return leftOverKeys
+
+    @staticmethod
+    def readXML(fileName):
+        result={}
+        global PATTERN
+        f=open(fileName,'r')
+        line = f.readline()
+        while line!="":
+            if 'translatable="false"' not in line:
+                matcher = PATTERN.search(line)
+                if matcher != None:
+                    result[matcher.group(1)]=matcher.group(2)
+            line = f.readline()
+        f.close()
+        return result
+
+    @staticmethod
+    def getLocaleXmlFileName(filePath):
+        hyphenIndex = filePath.index('-')
+        fdSlashIndex = filePath.index('/', hyphenIndex)
+        locale = filePath[hyphenIndex:fdSlashIndex]
+        return "strings" + locale + ".xml"
+
+    '''Get paths to all strings.xml files.'''
+def getStringsFilePaths():
+    p = os.popen("find . | grep strings.xml")
+    filesPath = p.readlines()
+    p.close()
+    return filesPath
+
+def getDefaultFileName():
+    return "strings.xml"
+
+def usage():
+    usage = """
+
+    aus : Android Untranslated Strings
+
+    Usage:
+    amt [-l xx[,yy,zz...]] -o <output_folder>
+
+    Options:
+    -h --help            Print help
+
+
+    -l --lang <xx>       Specify a language(s) with comma separated 2-char language codes.
+
+                         e.g:  -l cn         (find missing translation strings for Chinese strings.xml)
+                               -l cn,it,fr   (find missing translation strings for Chinese, Italian and French strings.xml files)
+
+                         If this parameter is ommited, all strings.xml files will be processed.
+
+
+    -o --oFile           Specify the output directory name
+    """
+    print usage
+
+def main(argv):
+    xmlFilePaths=[]
+    outputFile = ''
+    try:
+        opts, args = getopt.getopt(argv, "ho:l:",["ofile=","lang="])
+    except getopt.GetoptError:
+        print "unhandled option"
+        usage()
+        sys.exit(2)
+
+    if len(opts) == 0:
+        usage()
+        print "Error: missing parameters."
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt == '-h':
+            usage()
+            sys.exit(2)
+
+        if opt in ("-o", "--ofile"):
+            outputFile = arg
+
+        if opt in ("-l", "--lang"):
+            if "," in arg:
+               languages=arg.split(",")
+               for l in languages:
+                   xmlFilePaths.append("./res/values-" + l + "/strings.xml")
+            else:
+                xmlFilePaths=["./res/values-" + arg + "/strings.xml"]
+
+    if outputFile == '':
+        usage()
+        print "Error: missing -o (output file) parameter."
+        sys.exit(2)
+    elif not os.path.isdir(outputFile):
+        usage()
+        print "Error: output file is not a directory."
+
+    if len(xmlFilePaths) == 0:
+        xmlFilePaths=getStringsFilePaths()
+
+    xmlOriginalFile="./res/values/strings.xml"
+    originalDict=MissingStringsReport.readXML(xmlOriginalFile)
+
+    for xmlFilePath in xmlFilePaths:
+        filePath = xmlFilePath.strip()
+
+        if filePath != xmlOriginalFile:
+            localeXmlFileName = MissingStringsReport.getLocaleXmlFileName(filePath)
+            report = MissingStringsReport(filePath, originalDict)
+            print "Processing " + filePath + "..."
+
+            if len(report.getMissingKeys()) > 0:
+                fdLocale = open(os.path.join(outputFile, localeXmlFileName), 'w')
+                fdLocale.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+                fdLocale.write("<resources>\n")
+
+                for missingKey in report.getMissingKeys():
+                    tag = "<string name=\"%s\">%s</string>\n" % (missingKey, originalDict[missingKey])
+                    fdLocale.write(tag)
+
+                fdLocale.write("</resources>")
+                fdLocale.close()
+
+
+            if len(report.getLeftoverKeys()) > 0:
+                fdDefault = open(os.path.join(outputFile, getDefaultFileName()), 'w')
+                fdDefault.write("**** ---- **** **** ---- **** FILE: " + filePath + " **** ---- **** **** ---- ****\n")
+
+                for leftoverKey in report.getLeftoverKeys():
+                    tag = "<string name=\"%s\">...</string>\n" % (leftoverKey)
+                    fdDefault.write(tag)
+
+                fdDefault.write("**** ---- **** **** ---- **** **** ---- **** **** ---- ****\n")
+                fdDefault.close()
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
